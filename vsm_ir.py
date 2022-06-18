@@ -121,11 +121,111 @@ def create_index(xmls_dir):
 ### PART 2: Retrieval information for given query #####################################################
 
 
-# Return relavent docs based on given question.
+def calc_query_bm25(the_query, inverted_index, docs_num):
+    pass
+
+
+def calc_query_tfidf(the_query, inverted_index, docs_num):
+    query_length = len(the_query)
+    for i in the_query:
+        count = 0
+        if dict_query.get(i) == None:
+            for j in the_query:
+                if i == j:
+                    count += 1
+            tf = (count / query_length)
+            if inverted_index.get(i) != None:
+                idf = math.log2(docs_num / len(inverted_index.get(i)))
+            else:
+                idf = 0
+            dict_query.update({str(i) : tf*idf})
+
+
+def calc_results(inverted_index, doc_reference, rank_type):
+    results = []
+
+    # Calc query vector length
+    query_len = 0
+    for token in dict_query:
+        query_len += (dict_query[token]*dict_query[token])
+    query_len = math.sqrt(query_len)
+
+    documents_vectors = {}
+    for token in dict_query:
+        w = dict_query[token]
+        if inverted_index.get(token) != None:
+            for doc in inverted_index[token]:
+                if doc not in documents_vectors:
+                    documents_vectors[doc] = 0
+
+                documents_vectors[doc] += (inverted_index[token][doc][rank_type] * w)
+
+    for doc in documents_vectors:
+        doc_query_product = documents_vectors[doc]
+        doc_len = doc_reference[doc]
+        cosSim = doc_query_product / (doc_len * query_len)
+        results.append((doc, cosSim))
+
+    # Sort list by cos similarity
+    results.sort(key = lambda x: x[1], reverse=1)
+    return results
+
+
 def query():
+    dict_type = ""
+    ranking = sys.argv[2]
+    if ranking == "bm25":
+        dict_type = "bm25_dict"
+    elif ranking == "tfidf":
+        dict_type = "tfidf_dict"
+    else:
+        print("wrong ranking type from user")
+        return
 
-   return None
+    index_path = sys.argv[3]
 
+    try:
+        json_file = open(index_path,"r")
+    except:
+        print("wrong index path from user")
+        return
+
+    corpus = json.load(json_file) # Insert the json file to the global dictionary.
+
+    inverted_index = corpus[dict_type]
+    doc_reference = corpus["document_vector_len"]
+    docs_num = len(doc_reference)
+    json_file.close()
+
+    #clean query
+    try:
+        question = sys.argv[4].lower()
+    except:
+        print("query question is missing")
+        return
+
+    stop_words = set(stopwords.words("english"))
+    tokenizer = RegexpTokenizer(r'\w+')
+    ps = PorterStemmer()
+    question = tokenizer.tokenize(question)
+    the_query = [word for word in question if not word in stop_words]
+    for i in range(len(the_query)): #stemming
+        the_query[i] = ps.stem(the_query[i])
+
+    # calculate scores for query
+    if ranking == "bm25":
+        calc_query_bm25(the_query, inverted_index, docs_num)
+    elif ranking == "tfidf":
+        calc_query_tfidf(the_query, inverted_index, docs_num)
+
+    ans_docs = calc_results(inverted_index, doc_reference, ranking)
+
+    f = open("ranked_query_docs.txt","w")
+    for i in range(0, len(ans_docs)):
+        if(ans_docs[i][1] >= 0.075):
+            f.write(ans_docs[i][0] + "\n")
+
+    f.close()
 
 if __name__ == '__main__':
     mood = sys.argv[1]
