@@ -26,16 +26,17 @@ def update_doc_vec_len(record_num):
 def update_dictionary(text, record_num, file):
     for word in text:
         if word in dict_tfidf:
-            if dict_tfidf.get(word).get(file):
-                dict_tfidf[word][file]["count"] += 1
+
+            if dict_tfidf.get(word).get(record_num):
+                dict_tfidf[word][record_num]["count"] += 1
             else:
-                dict_tfidf[word].update({file : {"count" : 1 , "tf_idf" : 0}})
+                dict_tfidf[word].update({record_num : {"count" : 1 , "tf_idf" : 0}})
         else:
-            dict_tfidf[word] = {file : {"count" : 1 , "tf_idf" : 0}}
+            dict_tfidf[word] = {record_num : {"count" : 1 , "tf_idf" : 0}}
 
 
 
-def extract_text(xml_root, token, stop_words, ps):
+def extract_text(xml_root, token, stop_words, ps, file):
     for record in xml_root.findall("./RECORD"):
         text = ""
         text_without_stopwords = []
@@ -57,7 +58,7 @@ def extract_text(xml_root, token, stop_words, ps):
         for i in range(len(text_without_stopwords)):  # stemming
             text_without_stopwords[i] = ps.stem(text_without_stopwords[i])
 
-        update_dictionary(text_without_stopwords, record_num)
+        update_dictionary(text_without_stopwords, record_num, file)
         words_num_in_file[record_num] = len(text)
 
 
@@ -73,12 +74,14 @@ def extract_words(file):
     xml_tree = ET.parse(file)
     root = xml_tree.getroot()
 
-    extract_text(root, tokenizer, stop_words, ps)
+    extract_text(root, tokenizer, stop_words, ps, file)
 
 # Build inverted index.
 def calculate_tfidf(docs_num):
     for word in dict_tfidf:
         for file in dict_tfidf[word]:
+            #print("word ",word, "file: ", file)
+            #print(words_num_in_file)
             tf = dict_tfidf[word][file].get('count')/words_num_in_file.get(file)
             idf = math.log2(docs_num / len(dict_tfidf[word]))
             dict_tfidf[word][file]["tf_idf"] = tf*idf
@@ -228,6 +231,7 @@ def query():
     f.close()
 
 if __name__ == '__main__':
+    print(sys.argv)
     mood = sys.argv[1]
     if mood == "create_index":
         create_index(sys.argv[2])
