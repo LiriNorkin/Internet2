@@ -30,9 +30,9 @@ def update_dictionary(text, record_num, file):
             if dict_tfidf.get(word).get(record_num):
                 dict_tfidf[word][record_num]["count"] += 1
             else:
-                dict_tfidf[word].update({record_num : {"count" : 1 , "tf_idf" : 0}})
+                dict_tfidf[word].update({record_num : {"count" : 1 , "tfidf" : 0}})
         else:
-            dict_tfidf[word] = {record_num : {"count" : 1 , "tf_idf" : 0}}
+            dict_tfidf[word] = {record_num : {"count" : 1 , "tfidf" : 0}}
 
 
 
@@ -84,7 +84,7 @@ def calculate_tfidf(docs_num):
             #print(words_num_in_file)
             tf = dict_tfidf[word][file].get('count')/words_num_in_file.get(file)
             idf = math.log2(docs_num / len(dict_tfidf[word]))
-            dict_tfidf[word][file]["tf_idf"] = tf*idf
+            dict_tfidf[word][file]["tfidf"] = tf*idf
 
             #Incrementing length of current file by (idf*tf)^2:
             doc_vec_len[file] += (tf*idf*tf*idf)
@@ -154,7 +154,9 @@ def calc_results(inverted_index, doc_reference, rank_type):
     query_len = math.sqrt(query_len)
 
     documents_vectors = {}
+
     for token in dict_query:
+
         w = dict_query[token]
         if inverted_index.get(token) != None:
             for doc in inverted_index[token]:
@@ -202,7 +204,14 @@ def query():
 
     #clean query
     try:
-        question = sys.argv[4].lower()
+        #print(len(sys.argv))
+        n = len(sys.argv)
+        question = ""
+        for i in range(4, n):
+            question += sys.argv[i].lower()
+            if i != n:
+                question += " "
+        #print(question)
     except:
         print("query question is missing")
         return
@@ -231,7 +240,7 @@ def query():
     f.close()
 
 if __name__ == '__main__':
-    print(sys.argv)
+
     mood = sys.argv[1]
     if mood == "create_index":
         create_index(sys.argv[2])
