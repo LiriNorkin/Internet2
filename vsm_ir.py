@@ -14,15 +14,12 @@ import numpy as np
 corpus = {}
 # word : tf-idf score
 dict_tfidf = {}
-# word : bm-25 score
-dict_bm25 = {}
+# scores of tf-idf query
 dict_query = {}
 # record id : the normalized len of document vector
 doc_vec_len = {}
 # file_name : num of words in file after tokenization
 words_num_in_file = {}
-# save tf for bm-25 score
-tf_for_bm25 = {}
 
 ### PART 1: Inverted Index and scores #################################################################
 
@@ -132,14 +129,12 @@ def calculate_tfidf(docs_num):
 
     for word in dict_tfidf:
         for file in dict_tfidf[word]:
-            #print("word ",word, "file: ", file)
-            #print(words_num_in_file)
             tf = dict_tfidf[word][file].get('count')/words_num_in_file.get(file)
             idf = math.log2(docs_num / len(dict_tfidf[word]))
             dict_tfidf[word][file]["tfidf"] = tf*idf
 
             #Incrementing length of current file by (idf*tf)^2:
-            doc_vec_len[file] = doc_vec_len[file] + (tf*idf*tf*idf)
+            doc_vec_len[file] = doc_vec_len[file] + (tf*idf) ** 2
 
 def save_inverted_index_file():
     """
@@ -189,32 +184,6 @@ def calc_number_of_docs_containing_term(inverted_index, the_query):
             dict_counter_occurrence[word] = counter
             counter = 0
     return dict_counter_occurrence
-
-""""
-def calc_number_of_docs_containing_term(inverted_index, the_query):
-    
-    This function calculates the tf for each word in the query
-    :return @param dict_counter_occurrence = dict holds tf for each word in the query
-    
-    max_to_normalize = 0
-    dict_counter_occurrence = {}
-    counter = 0
-    for word in the_query:
-        if inverted_index.get(word) != None:
-            for i in inverted_index[word]:
-                counter += 1
-            dict_counter_occurrence[word] = counter
-            if counter > max_to_normalize:
-                max_to_normalize = counter
-            counter = 0
-    for tf in dict_counter_occurrence:
-        dict_counter_occurrence[tf] = dict_counter_occurrence[tf] / max_to_normalize
-    print(dict_counter_occurrence)
-    return dict_counter_occurrence
-"""
-
-#def calculate_idf(word, docs_num, n_qi):
-#    return np.log((docs_num - n_qi + 0.5) / (n_qi + 0.5) + 1)
 
 def calc_idf_dict(query, docs_num, dict_counter_occurrence):
     """
@@ -282,8 +251,8 @@ def calc_bm25(the_query, inverted_index, dict_doc_lengths, docs_num):
     dict_counter_occurrence = calc_number_of_docs_containing_term(inverted_index, the_query)
     dict_idf = calc_idf_dict(the_query, docs_num, dict_counter_occurrence)
 
-    # k in range [1.2,2] - saw in lecture, usually k = 1.2
-    k = 2.2
+    # k in range [1.2,2] - saw in lecture
+    k = 2.432
     # b in range [0,1] - saw in lecture, usually b = 0.75
     b = 0.75
 
@@ -300,11 +269,6 @@ def calc_bm25(the_query, inverted_index, dict_doc_lengths, docs_num):
                             dict_for_bm25[j] = dict_for_bm25[j] + bm25
                         else:
                             dict_for_bm25[j] = bm25
-
-    #k = Counter(dict_for_bm25)
-    #high = k.most_common(10)
-    #for i in high:
-        #print(i[0], " :", i[1], " ")
 
     return dict_for_bm25
 
@@ -415,14 +379,12 @@ def query():
 
     # clean query
     try:
-        # print(len(sys.argv))
         n = len(sys.argv)
         question = ""
         for i in range(4, n):
             question += sys.argv[i].lower()
             if i != n:
                 question += " "
-        # print(question)
     except:
         print("query question is missing")
         return
@@ -442,24 +404,8 @@ def query():
         ans_docs = calc_bm25(the_query, inverted_index, dict_doc_lengths, docs_num)
         f = open("ranked_query_docs.txt", "w")
         # sorting the dict of answer documents
-        #k = Counter(ans_docs)
-        #high = k.most_common(1)
-        #for i in high:
-        #    max = i[1]
-        #print(max)
         ans_docs = sorted(ans_docs.items(), key=lambda x: x[1], reverse=True)
         for i in ans_docs:
-            #6   NDCG@10: 0.4784467420085219,		Precision: 0.26413213612763353,		Recall: 0.3793997871781878,	    F: 0.24943803811555224
-            #5.8 NDCG@10: 0.4784467420085219,		Precision: 0.25192062426574036,		Recall: 0.3922063856819084,		F: 0.24680282390086852
-            #6.5 NDCG@10: 0.4782661997158752,		Precision: 0.3069584883295723,		Recall: 0.35134382419099836,	F: 0.2597265434645922
-            #5.5 NDCG@10: 0.4787180197792274,		Precision: 0.2288308728012538,		Recall: 0.4134285875997243,		F: 0.2391355181478957
-           #5.65 NDCG@10: 0.4784467420085219,		Precision: 0.23846846097351582,		Recall: 0.4035009355496101,		F: 0.2423498616251162
-           #5.72 NDCG@10: 0.4784467420085219,		Precision: 0.24659605718556776,		Recall: 0.4000579282384533,		F: 0.2459540285450452
-            #6.2 NDCG@10: 0.4784467420085219,		Precision: 0.27894183664011535,		Recall: 0.36839091486370523,	F: 0.2536714139397481
-           #6.35 NDCG@10: 0.4784467420085219,		Precision: 0.29464529232878706,		Recall: 0.3599695675794837,		F: 0.25759181958325966
-            #6.4 NDCG@10: 0.4784467420085219,		Precision: 0.29808861733822506,		Recall: 0.35474286881037176,	F: 0.25735891603931055
-            # 5 ומטה לא רלוונטי
-
             if i[1] >= 6.65:
                 f.write(i[0] + "\n")
         f.close()
